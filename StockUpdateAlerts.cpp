@@ -39,7 +39,8 @@ public:
 
     StockUpdateAlerts();
     ~StockUpdateAlerts();
-    bool UpdateStock(int medicineID, int quantity);
+    void AddMedicineStock();
+    void UpdateStock();
     void LowStockAlert(int threshold);
 };
 
@@ -58,19 +59,48 @@ StockUpdateAlerts:: ~StockUpdateAlerts() {
         }
     }
 
-// Function to update stock quantity of a given medicine
-bool StockUpdateAlerts::UpdateStock (int medicineID, int quantity){
+// Function to add a new medicine to the stock
+void StockUpdateAlerts::AddMedicineStock() {
+    int medicineID, initialStock;
+
+    // Prompt the user to input medicine details
+    cout << "Enter Medicine ID: ";
+    cin >> medicineID;
+    cout << "Enter Initial Stock Level: ";
+    cin >> initialStock;
+
+    // Create a new StockNode and add it to the linked list
+    StockNode* newNode = new StockNode(medicineID, initialStock);
+    newNode->next = headPtr;
+    headPtr = newNode;
+
+    cout << "Medicine added successfully!" << endl;
+}
+
+// Function to update the stock quantity of a given medicine
+void StockUpdateAlerts::UpdateStock() {
+    int medicineID, quantity;
+
+    // Prompt the user for medicine ID and quantity
+    cout << "Enter Medicine ID to update: ";
+    cin >> medicineID;
+    cout << "Enter quantity to add: ";
+    cin >> quantity;
+
     StockNode* curPtr = headPtr;
 
-    // Traverse the linked list to find the medicine with given ID
-    while (curPtr){
-        if (curPtr -> medicineID == medicineID){
-            curPtr -> stockLevel += quantity; // Update the stock level with the quantity
-            return true; // Medicine is found and updated
+    // Traverse the linked list to find the medicine with the given ID
+    while (curPtr) {
+        if (curPtr->medicineID == medicineID) {
+            curPtr->stockLevel += quantity; // Update the stock level with the quantity
+            cout << "Stock updated successfully for Medicine ID: " << medicineID << endl;
+            return; // Exit after updating
         }
-        curPtr = curPtr -> next; // Move to the next node
+        curPtr = curPtr->next; // Move to the next node
     }
-    return false; // Medicine does not exist in the list
+
+    // If the medicine ID is not found, display a message
+    cout << "Medicine with ID: " << medicineID << " not found in the stock list." << endl;
 }
 
 // Function to generate low stock alerts for medicines below a given threshold
@@ -94,6 +124,54 @@ void StockUpdateAlerts::LowStockAlert (int threshold){
     if (!alert){
         cout << "No medicines are in low stock quantities." << endl;
     }
+}
+
+int main() {
+    StockUpdateAlerts stockAlerts; // Create an instance of StockUpdateAlerts
+
+    int choice;
+
+    // Display menu options
+    do {
+        cout << "\nPharmacy Stock Update and Alerts" << endl;
+        cout << "1. Add Medicine" << endl;
+        cout << "2. Update Stock" << endl;
+        cout << "3. Low Stock Alerts" << endl;
+        cout << "4. Exit" << endl;
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        switch (choice) {
+            case 1:
+                // Add a new medicine
+                stockAlerts.AddMedicineStock();
+                break;
+
+            case 2:
+                // Update stock for a specific medicine
+                stockAlerts.UpdateStock();
+                break;
+
+            case 3: {
+                // Display low stock alerts
+                int threshold;
+                cout << "Enter stock threshold: ";
+                cin >> threshold;
+                stockAlerts.LowStockAlert(threshold);
+                break;
+            }
+
+            case 4:
+                // Exit the program
+                cout << "Exiting the system. Goodbye!" << endl;
+                break;
+
+            default:
+                cout << "Invalid choice. Please try again." << endl;
+        }
+    } while (choice != 4);
+
+    return 0;
 }
 
 #endif
