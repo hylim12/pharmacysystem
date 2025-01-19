@@ -17,6 +17,7 @@ Customer Purchase ADT
 #define CUSTOMER_PURCHASE_CPP
 
 #include <iostream>
+#include <fstream>
 using namespace std;
 
 // Definition of a purchaseItem node
@@ -51,7 +52,6 @@ public:
     void enqueue(string newName, int newQuantity, float newPrice);
     void dequeue();
     void dequeue(string& frontName, int& frontQuantity, float& frontPrice);
-    void getFront(string& frontName, int& frontQuantity, float& frontPrice);
     void display();
 };
 
@@ -158,26 +158,6 @@ void purchaseQueue:: dequeue(string& frontName, int& frontQuantity, float& front
     }
 }
 
-// Retrieves a purchase item from the front of the queue
-void purchaseQueue:: getFront(string& frontName, int& frontQuantity, float& frontPrice)
-{
-    if (isEmpty()) // Cannot display first node if no purchases have been made
-        cout << "Error! There are no purchases so far! Retrieve first purchase entry unsuccessful.";
-    else
-    {
-        // Retrieve the first node of the queue
-        frontName = frontPtr -> name;
-        frontQuantity = frontPtr -> quantity;
-        frontPrice = frontPtr -> price;
-        // Display the first node from the queue
-        cout << "The first purchase entry in the system is: "
-             << frontName << ", "
-             << frontQuantity << ", "
-             << frontPrice << endl;
-
-    }
-}
-
 // Prints all the purchase entries in the system
 void purchaseQueue:: display()
 {
@@ -193,39 +173,42 @@ void purchaseQueue:: display()
     cout << "]\n";
 }
 
+// Definition of PurchaseNode representing a purchase in a linked list
+struct PurchaseNode{
+    string purchaseID; // Unique identifier for the purchase
+    string customerID;
+    float totalAmount;
+    purchaseQueue items; // Custom queue containing items in the purchase
+    PurchaseNode* next; // Pointer to the next node in the linked list
+
+    // Constructor to initialize the purchase node
+    PurchaseNode (string pID, string cID, purchaseQueue item, float amount):
+        purchaseID(pID), customerID(cID), items(item), totalAmount(amount), next(nullptr) {}
+};
+
 class CustomerPurchase{
 private:
-    // Definition of PurchaseNode representing a purchase in a linked list
-    struct PurchaseNode{
-        int purchaseID; // Unique identifier for the purchase
-        int customerID;
-        float totalAmount;
-        purchaseQueue items; // Custom queue containing items in the purchase
-        PurchaseNode* next; // Pointer to the next node in the linked list
-
-        // Constructor to initialize the purchase node
-        PurchaseNode (int pID, int cID, purchaseQueue item, float amount):
-            purchaseID(pID), customerID(cID), items(item), totalAmount(amount), next(nullptr) {}
-    };
-
     PurchaseNode* headPtr; // Pointer to the head of the linked list
-    bool newPurchaseID(int purchaseID);
-    PurchaseNode* findPurchase(int purchaseID) const;
+    bool newPurchaseID(string purchaseID);
+    PurchaseNode* findPurchase(string purchaseID) const;
 
 public:
     CustomerPurchase() : headPtr(nullptr){}
     ~CustomerPurchase();
 
-    bool AddPurchase(int purchaseID, int customerID, purchaseQueue items);
-    bool EditPurchase(int purchaseID, purchaseQueue newItem);
-    bool DeletePurchase(int purchaseID);
-    void DisplayPurchase(int purchaseID) const;
+    void AddPurchase();
+    void EditPurchase();
+    void DeletePurchase();
+    void DisplayPurchase() const;
 
     void SortPurchases(bool ascending);
+    void saveToFile();
+    void loadFromFile();
+    void Menu();
 };
 
 // Function to check if a purchase ID is unique in the list
-bool CustomerPurchase::newPurchaseID(int purchaseID){
+bool CustomerPurchase::newPurchaseID(string purchaseID){
     PurchaseNode* curPtr = headPtr;
     while (curPtr){
         if (curPtr -> purchaseID == purchaseID){
@@ -237,7 +220,7 @@ bool CustomerPurchase::newPurchaseID(int purchaseID){
 }
 
 //  Finds a purchase node by its ID
-CustomerPurchase::PurchaseNode* CustomerPurchase::findPurchase(int purchaseID)const {
+PurchaseNode* CustomerPurchase::findPurchase(string purchaseID)const {
     PurchaseNode* curPtr = headPtr;
     while (curPtr){
         if (curPtr -> purchaseID == purchaseID){
@@ -256,117 +239,284 @@ CustomerPurchase::~CustomerPurchase(){
     }
 }
 
-// Adds a new purchase record to the linked list
-bool CustomerPurchase::AddPurchase(int purchaseID, int customerID, purchaseQueue items) {
-    if (!newPurchaseID(purchaseID)) {
-        cout << "Error! This is an existing purchase. Insert a new purchase ID\n";
-        return false; // Purchase ID already exists
+// Function to save customer purchase data to a file
+void CustomerPurchase::saveToFile() {
+    ofstream file("purchases.txt");
+    if (!file) {
+        cout << "Error! Unable to save purchase entry.\n";
+        return;
     }
 
-    // Calculate the total amount of the purchase
-    float total = 0.0f;
-    purchaseQueue tempItem;
-    items.copy(tempItem); // Copy the queue to a temporary queue
+    PurchaseNode* curPtr = headPtr;
+    // Save customer purchase data and items purchased
+    while (curPtr) {
+        file << curPtr->purchaseID << "\n"
+             << curPtr->customerID << "\n";
 
-    while (!tempItem.isEmpty()) {
+        // Save all items in the purchase
+        purchaseQueue tempQueue;
+        curPtr->items.copy(tempQueue); // Copy the purchaseQueue to preserve original data
+        int count = 0;
+
+        // Save item details (name, quantity, price)
+        while (!tempQueue.isEmpty()) {
+            string itemName;
+            int itemQuantity;
+            float itemPrice;
+
+            tempQueue.dequeue(itemName, itemQuantity, itemPrice);
+            file << itemName << " " << itemQuantity << " " << itemPrice << "\n";
+            count++;
+        }
+
+        file << count << "\n"; // Save the number of items in the purchase
+        file << curPtr->totalAmount << "\n"; // Save total cost of the purchase
+
+        curPtr = curPtr->next;
+    }
+
+    file.close();
+    cout << "Purchases saved successfully.\n";
+}
+
+// Function to load customer purchase data from a file
+void CustomerPurchase::loadFromFile() {
+    ifstream file("purchases.txt");
+    if (!file) {
+        return;
+    }
+
+    while (!file.eof()) {
+        string pID, cID;
+        int itemCount;
+        purchaseQueue item;
+        float amount;
+
+        // Read purchase ID, customer ID, total amount and item count
+        file >> pID >> cID >> amount >> itemCount;
+        if (file.fail()) break; // Stop reading if file format is incorrect
+
+        cout << "Purchase ID: " << pID << "\n";
+        cout << "Customer ID: " << cID << "\n";
+        cout << "Total Amount: " << amount << "\n";
+        cout << "Items:\n";
+
+        // Load all items into the purchaseQueue
+        for (int i = 0; i < itemCount; ++i) {
+            string itemName;
+            int itemQuantity;
+            float itemPrice;
+
+            file.ignore(); // Ignore leftover newline from the previous read
+            file >> itemName >> itemQuantity >> itemPrice;
+            if (file.fail()) break; // Stop if file format is invalid
+
+            // Enqueue item to the items queue
+            item.enqueue(itemName, itemQuantity, itemPrice);
+
+            // Display the item details
+            cout << "  Item Name: " << itemName << ", Quantity: " << itemQuantity
+                 << ", Price: " << itemPrice << "\n";
+        }
+
+        // Display the items in the purchase queue
+        cout << "Total Items: " << itemCount << "\n\n";
+
+        // Create a new purchase node with the loaded data
+        PurchaseNode* newPurchase = new PurchaseNode(pID, cID, item, amount);
+        newPurchase->next = headPtr;  // Make list circular
+        headPtr = newPurchase;
+    }
+
+    file.close();
+    cout << "Data loaded successfully from file.\n";
+}
+
+// Adds a new purchase record to the linked list
+void CustomerPurchase::AddPurchase() {
+    string pID, cID;
+    purchaseQueue item;
+    char choice = 'y';
+    float amount;
+
+    cout << "Enter Purchase ID: ";
+    getline(cin, pID);
+
+    if (!newPurchaseID(pID)) {
+        cout << "Error! This is an existing purchase. Insert a new purchase ID\n";
+        return; // Purchase ID already exists
+    }
+
+    cout << "Enter Customer ID: ";
+    getline(cin, cID);
+
+    // Loop to add items to the purchase
+    while (tolower(choice) == 'y') {
         string itemName;
         int itemQuantity;
         float itemPrice;
 
-        tempItem.dequeue(itemName, itemQuantity, itemPrice); // Remove the first node of the temporary queue
-        total += itemPrice * itemQuantity; // Add each item cost to the total
+        cout << "\nItem Details\n ";
+        cout << "\tEnter Item Name: ";
+        getline(cin, itemName);
+
+        cout << "\tEnter Item Quantity: ";
+        cin >> itemQuantity;
+
+        cout << "\tEnter Item Price: ";
+        cin >> itemPrice;
+        cin.ignore(); // Clear input buffer
+
+        // Add the item to the purchaseQueue
+        item.enqueue(itemName, itemQuantity, itemPrice);
+
+        // Update total amount of the purchase
+        amount += itemPrice * itemQuantity;
+
+        cout << "Add another item? (Y/N): ";
+        cin >> choice;
+        cin.ignore(); // Clear input buffer
     }
 
     // Create a new purchase node and add to the front of the list
-    PurchaseNode* newPurchase = new PurchaseNode(purchaseID, customerID, items, total);
+    PurchaseNode* newPurchase = new PurchaseNode(pID, cID, item, amount);
     newPurchase->next = headPtr;
     headPtr = newPurchase;
 
-    return true; // Successfully added
+    saveToFile();
+    cout << "Purchase entry added successfully\n";
 }
 
 // Modify an existing purchase record's details
-bool CustomerPurchase::EditPurchase(int purchaseID, purchaseQueue newItems){
-    PurchaseNode* purchase = findPurchase(purchaseID);
+void CustomerPurchase::EditPurchase(){
+    string pID;
+    purchaseQueue newItems;
+    float amount = 0.0f;
+
+    cout << "Enter Purchase ID to modify: ";
+    cin >> pID;
+
+    PurchaseNode* purchase = findPurchase(pID);
     if(!purchase){
-        cout << "Error! The has been no such purchase.\n";
-        return false; // Purchase ID does not exist
-    }
-
-    // Update the items in the purchase node
-    purchase -> items = newItems;
-
-    // Recalculate the total cost for the purchase
-    float total = 0.0f;
-    purchaseQueue tempItem;
-    newItems.copy(tempItem); // Copy the queue to a temporary queue
-
-    while (!tempItem.isEmpty()){
-        string itemName;
-        int itemQuantity;
-        float itemPrice;
-
-        tempItem.dequeue(itemName, itemQuantity, itemPrice); // Remove the first node of the temporary queue
-        total = itemPrice * itemQuantity; // Add each item cost to the total
-    }
-    purchase -> totalAmount = total; // Update the total amount to the updated total cost
-    return true; // Successfully edited;
-}
-
-// Deletes a purchase record by its ID
-bool CustomerPurchase::DeletePurchase(int purchaseID){
-    PurchaseNode* curPtr = headPtr;
-    PurchaseNode* prevPtr = nullptr;
-
-    while (curPtr){
-        if (curPtr -> purchaseID == purchaseID){
-            // Removes the node from the list if it matches the given purchaseID
-            if (prevPtr){
-                prevPtr -> next = curPtr -> next; // Bypass the current node
-            } else {
-                headPtr = curPtr -> next; // Update the head pointer to the node after the first node
-            }
-            delete curPtr; // Free memory for the deleted node
-            return true; // Successfully deleted
-        }
-        prevPtr = curPtr;
-        curPtr = curPtr -> next;
-    }
-    cout << "Error! Purchase entry does not exist in the system.\n";
-    return false; // Purchase ID is invalid or not found
-}
-
-// Displays the details of a specific purchase record
-void CustomerPurchase::DisplayPurchase (int purchaseID) const{
-    PurchaseNode* purchase = findPurchase(purchaseID);
-    if (!purchase){
         cout << "Error! The has been no such purchase.\n";
         return; // Purchase ID does not exist
     }
 
-    // Display purchase details
-    cout << "Purchase ID: " << purchase -> purchaseID << endl;
-    cout << "Customer ID: " << purchase -> customerID << endl;
-    cout << "Items: \n";
+    cin.ignore(); // Clear input buffer
+    cout << "Modifying Purchase ID: " << pID << "\n";
+    cout << "Current items in this purchase: \n";
 
-    // Display all items in the purchase
-    purchaseQueue tempItem;
-    purchase -> items.copy(tempItem);
-    while (!tempItem.isEmpty()) {
-        string itemName;
-        int itemQuantity;
-        float itemPrice;
+    purchaseQueue tempQueue = purchase->items;
+    string itemName;
+    int itemQuantity;
+    float itemPrice;
 
-        tempItem.dequeue(itemName, itemQuantity, itemPrice);
-        cout << "Name: " << itemName << endl;
-        cout << "Quantity: " << itemQuantity << endl;
-        cout << "Price: " << itemPrice << endl;
+    while (!tempQueue.isEmpty()) {
+        tempQueue.dequeue(itemName, itemQuantity, itemPrice);
+        cout << "Item Name: " << itemName << ", Quantity: " << itemQuantity
+             << ", Price: " << itemPrice << "\n";
     }
 
-    // Display the total amount of all items in a purchase
-    cout << "Total Amount: " << purchase -> totalAmount << endl;
+   cout << "Enter Item Name to edit (leave blank to skip): ";
+    getline(cin, itemName);
+
+    if (!itemName.empty()) {
+        cout << "Enter new Item Quantity: ";
+        cin >> itemQuantity;
+
+        cout << "Enter new Item Price: ";
+        cin >> itemPrice;
+        cin.ignore(); // Clear input buffer
+
+        // Add or update the item in the purchaseQueue
+        purchase->items.enqueue(itemName, itemQuantity, itemPrice);
+
+        // Update total amount of the purchase
+        amount += itemPrice * itemQuantity;
+    }
+
+    purchase -> totalAmount = amount; // Update the total amount to the updated total cost
+    saveToFile();
+    cout << "Purchase entry updated successfully\n";
 }
 
+// Deletes a purchase record by its ID
+void CustomerPurchase::DeletePurchase(){
+    string pID;
+    cout << "Enter Purchase ID to remove: ";
+    getline(cin, pID);
+
+    PurchaseNode* curPtr = headPtr;
+    PurchaseNode* prevPtr = nullptr;
+
+    while (curPtr && curPtr -> purchaseID != pID){
+            prevPtr = curPtr;
+            curPtr = curPtr -> next;
+    }
+
+    if (!curPtr){
+        cout << "Error! Purchase entry does not exist in the system. \n";
+        return;
+    }
+
+    if (prevPtr)
+    {
+        prevPtr -> next = curPtr -> next;
+    }
+    else {
+        headPtr = curPtr -> next;
+    }
+
+    delete curPtr;
+    saveToFile();
+    cout << "Purchase entry deleted successfully\n";
+}
+
+// Displays the details of a specific purchase record
+void CustomerPurchase::DisplayPurchase () const{
+    if (!headPtr){
+        cout << "No purchase entries in the system!";
+        return;
+    }
+
+    string pID;
+    cout << "Enter purchase ID to display: ";
+    cin >> pID;
+
+    PurchaseNode* curPtr = headPtr;
+    bool found = false;
+     do {
+        if (curPtr->purchaseID == pID) {
+            // Display the purchase details
+            cout << "\nPurchase ID: " << curPtr->purchaseID << endl;
+            cout << "Customer ID: " << curPtr->customerID << endl;
+            cout << "Items Purchased:\n";
+
+            // Display all items in the current purchase
+            purchaseQueue tempItem = curPtr->items;
+            string itemName;
+            int itemQuantity;
+            float itemPrice;
+
+            while (!tempItem.isEmpty()) {
+                tempItem.dequeue(itemName, itemQuantity, itemPrice);
+                cout << "Item Name: " << itemName << ", Quantity: " << itemQuantity
+                     << ", Price: " << itemPrice << endl;
+            }
+
+            // Display the total amount of the purchase
+            cout << "Total Amount: " << curPtr->totalAmount << endl;
+
+            found = true;
+            break; // Exit loop once the matching purchase is found
+        }
+        curPtr = curPtr->next;
+    } while (curPtr != headPtr); // Stop when we complete the circular loop
+
+    if (!found) {
+        cout << "No purchase found with ID: " << pID << endl;
+    }
+}
 // Bubble sort to sort purchases by totalAmount in ascending or descending order
 void CustomerPurchase::SortPurchases(bool ascending) {
     if (headPtr == nullptr || headPtr->next == nullptr) {
@@ -388,8 +538,8 @@ void CustomerPurchase::SortPurchases(bool ascending) {
 
             if (Swap) {
                 // Swap the purchases if they are in the wrong order
-                int tempPurchaseID = curPtr->purchaseID;
-                int tempCustomerID = curPtr->customerID;
+                string tempPurchaseID = curPtr->purchaseID;
+                string tempCustomerID = curPtr->customerID;
                 float tempTotalAmount = curPtr->totalAmount;
                 purchaseQueue tempItems = curPtr->items;
 
@@ -411,5 +561,61 @@ void CustomerPurchase::SortPurchases(bool ascending) {
     } while (swapped);
 }
 
+
+// Function to manage customer purchases
+void CustomerPurchase::Menu() {
+    int choice;
+    do {
+        cout << "\n--- Customer Purchase Management ---\n";
+        cout << "1. Add Purchase\n";
+        cout << "2. Edit Purchase\n";
+        cout << "3. Delete Purchase\n";
+        cout << "4. Display Purchase\n";
+        cout << "5. Sort Purchases\n";
+        cout << "6. Back to Main Menu\n";
+        cout << "Enter your choice: ";
+        cin >> choice;
+        cin.ignore(); // To ignore the newline left by previous input
+
+        switch (choice) {
+            case 1: {
+                AddPurchase();  // Call the AddPurchase function
+                break;
+            }
+            case 2: {
+                EditPurchase();
+                break;
+            }
+            case 3: {
+                DeletePurchase();
+                break;
+            }
+            case 4: {
+                DisplayPurchase();
+                break;
+            }
+            case 5: {
+                bool ascending;
+                cout << "Sort by total amount? (1 for ascending, 0 for descending): ";
+                cin >> ascending;  // Get the sort order
+                SortPurchases(ascending);  // Call the SortPurchases function
+                cout << "Purchases sorted successfully.\n";
+                break;
+            }
+            case 6: {
+                cout << "Returning to the main menu.\n";
+                break;
+            }
+            default:
+                cout << "Invalid choice. Please try again.\n";
+        }
+    } while (choice != 6);  // Loop until the user chooses to exit (choice 6)
+}
+
+int main() {
+    CustomerPurchase custPur;
+    custPur.Menu(); // Handle customer purchases management
+    return 0;
+}
 
 #endif
