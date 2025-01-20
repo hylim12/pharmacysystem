@@ -46,7 +46,6 @@ class MedicineInventory {
 private:
     Medicine* headPtr; // Pointer to the head of the linked list storing medicine records.
 
-    bool isUniqueID(string medicineID) const;   // Checks if a given medicine ID is unique in the inventory.
     bool isLoading; // Flag to indicate if data is being loaded from the file to prevent unnecessary file writes.
                     // True when loading data from file.
 
@@ -87,30 +86,20 @@ MedicineInventory::~MedicineInventory() {
     }
 }
 
-// Checks if the medicine ID is unique.
-bool MedicineInventory::isUniqueID(string medicineID) const {
-    Medicine* curPtr = headPtr; // curPtr points to the head of the linked list to start traversal.
-
-    // Using while loop to iterates through the linked list.
-    while (curPtr) {
-        // Compare the current node's medicineID with the input ID
-        if (curPtr->medicineID == medicineID) {
-            return false;   // Return false if a match is found, indicating input ID is not unique.
-        }
-        curPtr = curPtr->next;  // Move to the next node in the linked list.
-    }
-    return true;    // Return true id no match is found until the end of linked list,
-                    // indicating input ID is unique.
-}
-
 // Adds a new medicine to the inventory.
 bool MedicineInventory::CreateMedicine(string medicineID, string medName, string medManufacturer, int medQuantity, float medPrice, string expiryDate) {
-    // Check if the medicine ID is unique in the inventory.
-    // If the ID is not unique, print an error message and return false.
-    // If the ID is unique, skip the if statement and proceed with the following code.
-    if (!isUniqueID(medicineID)) {
-        cout << "Error! Medicine ID already exists.\n";
-        return false;
+    // Check if the medicine ID already exists in the inventory by traversing the linked list.
+    Medicine* curPtr = headPtr; // curPtr points to the head of the linked list to start traversal.
+    // Using while loop to iterate through the linked list until the end is reached.
+    while (curPtr != nullptr) {
+        // Compare medicineID with each node in the list.
+        // If matching medicineID is found, print an error message indicating ID exists.
+        // Return false and exit the function.
+        if (curPtr->medicineID == medicineID) {
+            cout << "Error! Medicine ID already exists.\n" ;
+            return false;
+        }
+        curPtr = curPtr->next; // Move to the next node.
     }
 
     // Create a new Medicine object with the provided details.
