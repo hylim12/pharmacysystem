@@ -322,7 +322,7 @@ void MedicineInventory::SortByQuantity() {
         // Traverses the list up to the last sorted node prevPtr.
         while (curPtr->next != prevPtr) {
             // Perform swap when current node is large than the next node.
-            if (curPtr->medName > curPtr->next->medName){
+            if (curPtr->medQuantity > curPtr->next->medQuantity){
                 swap(curPtr->medicineID, curPtr->next->medicineID);
                 swap(curPtr->medName, curPtr->next->medName);
                 swap(curPtr->medManufacturer, curPtr->next->medManufacturer);
